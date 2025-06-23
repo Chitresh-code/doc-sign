@@ -60,6 +60,17 @@ export default function DashboardPage() {
     }
   }
 
+  const handleViewPDF = async (id: number) => {
+    try {
+      const response = await apiClient.getDocumentPDF(id)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch (error) {
+      console.error("Failed to view document:", error)
+    }
+  }
+
   const handleSendToSigner = async (id: number) => {
     try {
       await apiClient.sendDocumentToSigner(id)
@@ -136,6 +147,10 @@ export default function DashboardPage() {
                         <Button size="sm" variant="outline" onClick={() => handleDownload(doc.id, doc.name)}>
                           <Download className="w-4 h-4 mr-1" />
                           Download
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleViewPDF(doc.id)}>
+                          <FileText className="w-4 h-4 mr-1" />
+                          View
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => handleSendToSigner(doc.id)}>
                           <Send className="w-4 h-4 mr-1" />

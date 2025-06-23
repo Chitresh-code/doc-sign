@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { apiClient } from "@/lib/api"
@@ -15,6 +15,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+
+// Mapping of document types to their required metadata fields
+const DOCUMENT_FIELDS: Record<string, { label: string; name: string; type?: string; placeholder?: string }[]> = {
+  nda: [
+    { label: "Start Date", name: "start_date", type: "date" },
+    { label: "End Date", name: "end_date", type: "date" },
+    { label: "Recipient Name", name: "recipient_name", placeholder: "e.g., John Doe" },
+  ],
+  offer: [
+    { label: "Start Date", name: "start_date", type: "date" },
+    { label: "Recipient Name", name: "recipient_name", placeholder: "e.g., John Doe" },
+    { label: "Role", name: "role", placeholder: "e.g., Software Engineer" },
+    { label: "Salary", name: "salary", type: "number", placeholder: "e.g., 50000" },
+  ],
+  invoice: [
+    { label: "Recipient Name", name: "recipient_name", placeholder: "e.g., John Doe" },
+    { label: "Due Date", name: "due_date", type: "date" },
+    { label: "Item", name: "item", placeholder: "e.g., Consulting" },
+    { label: "Description", name: "description", placeholder: "e.g., Consulting services for May" },
+    { label: "Amount", name: "amount", type: "number", placeholder: "e.g., 10000" },
+  ],
+}
 
 export default function CreateDocumentPage() {
   const { user } = useAuth()
@@ -31,6 +53,11 @@ export default function CreateDocumentPage() {
     signer_last_name: "",
     metadata: {},
   })
+
+  // Memoize the fields to render based on selected template_type
+  const dynamicFields = useMemo(() => {
+    return DOCUMENT_FIELDS[formData.template_type] || []
+  }, [formData.template_type])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -186,22 +213,23 @@ export default function CreateDocumentPage() {
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Additional Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="company">Company Name</Label>
-                    <Input
-                      id="company"
-                      onChange={(e) => handleMetadataChange("company", e.target.value)}
-                      placeholder="Company name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="position">Position/Title</Label>
-                    <Input
-                      id="position"
-                      onChange={(e) => handleMetadataChange("position", e.target.value)}
-                      placeholder="Job title or position"
-                    />
-                  </div>
+                  {/* Render dynamic fields based on document type */}
+                  {dynamicFields.length === 0 && (
+                    <div className="text-gray-500">Select a document type to enter additional information.</div>
+                  )}
+                  {dynamicFields.map((field) => (
+                    <div className="space-y-2" key={field.name}>
+                      <Label htmlFor={field.name}>{field.label}</Label>
+                      <Input
+                        id={field.name}
+                        type={field.type || "text"}
+                        value={formData.metadata[field.name] || ""}
+                        onChange={(e) => handleMetadataChange(field.name, e.target.value)}
+                        placeholder={field.placeholder}
+                        required
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
