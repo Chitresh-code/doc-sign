@@ -40,8 +40,14 @@ class SignDocumentView(APIView):
             metadata['signature_text'] = f"Signed by {signer_name}"
             plain_metadata = {k: decrypt_value(v) for k, v in doc.encrypted_metadata.items()}
             plain_metadata['signature_text'] = f"Signed by {signer_name}"
-
-            template = f"{doc.document_type}.html"
+            
+            TEMPLATE_MATCH = {
+                'nda': 'nda',
+                'invoice': 'invoice',
+                'offer': 'offer_letter',
+            }
+            template_name = TEMPLATE_MATCH.get(template_name, 'default_template')
+            template = f"{template_name}.html"
 
             # Generate signed HTML → PDF
             html_signed = render_html.render_html(template, plain_metadata)

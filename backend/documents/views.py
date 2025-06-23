@@ -37,7 +37,13 @@ class GenerateDocumentView(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             data = serializer.validated_data
-            template = f"{data['template_type']}.html"
+            TEMPLATES_MATCH = {
+                'nda': 'nda',
+                'invoice': 'invoice',
+                'offer': 'offer_letter',
+            }
+            matching_template = TEMPLATES_MATCH.get(data['template_type'])
+            template = f"{matching_template}.html"
 
             signer, created = User.objects.get_or_create(
                 username=data['signer_username'],
@@ -75,8 +81,8 @@ class GenerateDocumentView(APIView):
             clean_name = data.get("name", f"{data['template_type'].capitalize()} Document").replace(" ", "_")
             doc.plain_pdf.save(f"{clean_name}.pdf", ContentFile(pdf_plain))
             doc.encrypted_pdf.save(f"{clean_name}_encrypted.pdf", ContentFile(pdf_encrypted))
-            doc.plain_html.save(f"{clean_name}.html", ContentFile(html_plain))
-            doc.encrypted_html.save(f"{clean_name}_encrypted.html", ContentFile(html_encrypted))
+            doc.plain_html.save(f"{clean_name}.html", ContentFile(html_plain.encode('utf-8')))
+            doc.encrypted_html.save(f"{clean_name}_encrypted.html", ContentFile(html_encrypted.encode('utf-8')))
 
             logger.info(f"Document generated: {doc.id} by {request.user.username}")
             return Response(GeneratedDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
