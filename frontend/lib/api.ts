@@ -146,6 +146,10 @@ export class ApiClient {
   async getSummary(id: number) {
     return this.request(`/summary/v1/view/${id}/`)
   }
+
+  async getSignedStatus(id: number) {
+    return this.request(`/signature/v1/status/${id}/`)
+  }
 }
 
 export const apiClient = new ApiClient()

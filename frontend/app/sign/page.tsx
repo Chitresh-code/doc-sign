@@ -43,6 +43,7 @@ export default function SignPage() {
       fetchDocument()
       fetchPDF()
       fetchSummary()
+      checkSignedStatus()
     } else {
       setError("Invalid signing link")
       setLoading(false)
@@ -118,13 +119,22 @@ export default function SignPage() {
     }
   }
 
+  const checkSignedStatus = async () => {
+    try {
+      const status = await apiClient.getSignedStatus(Number(docId))
+      setSigned(!!status.signed)
+    } catch (err) {
+      setSigned(false)
+    }
+  }
+
   const handleSignDocument = async () => {
     if (!document) return
 
     setSigning(true)
     try {
       await apiClient.signDocument(document.id)
-      setSigned(true)
+      await checkSignedStatus()
     } catch (err: any) {
       setError("Failed to sign document")
     } finally {

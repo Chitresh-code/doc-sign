@@ -94,3 +94,18 @@ class ViewSignedPDFView(APIView):
             return Response({'error': 'Signed document not found.'}, status=404)
 
         return FileResponse(doc.signed_version.signed_pdf.open('rb'), content_type='application/pdf')
+
+class SignedStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        doc = get_object_or_404(GeneratedDocument, pk=pk)
+        try:
+            signed_doc = SignedDocument.objects.get(original_document=doc)
+            return Response({
+                'signed': True,
+                'signed_at': signed_doc.signed_at,
+                'signed_by': signed_doc.signed_by.username
+            })
+        except SignedDocument.DoesNotExist:
+            return Response({'signed': False})
