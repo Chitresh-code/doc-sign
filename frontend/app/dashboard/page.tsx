@@ -16,6 +16,8 @@ interface Document {
   document_type: string
   signer_username: string
   created_at: string
+  signed?: boolean
+  signed_at?: string | null
 }
 
 export default function DashboardPage() {
@@ -68,6 +70,17 @@ export default function DashboardPage() {
       window.open(url, '_blank')
     } catch (error) {
       console.error("Failed to view document:", error)
+    }
+  }
+
+  const handleViewSignedPDF = async (id: number, name: string) => {
+    try {
+      const response = await apiClient.getSignedPDF(id)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch (error) {
+      console.error("Failed to view signed document:", error)
     }
   }
 
@@ -143,6 +156,13 @@ export default function DashboardPage() {
                   <CardContent>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-600">Signer: {doc.signer_username}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        {doc.signed ? (
+                          <span className="text-green-600 font-semibold text-xs">Signed{doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}</span>
+                        ) : (
+                          <span className="text-gray-400 font-semibold text-xs">Not Signed</span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={() => handleDownload(doc.id, doc.name)}>
                           <Download className="w-4 h-4 mr-1" />
@@ -152,6 +172,12 @@ export default function DashboardPage() {
                           <FileText className="w-4 h-4 mr-1" />
                           View
                         </Button>
+                        {doc.signed && (
+                          <Button size="sm" variant="outline" onClick={() => handleViewSignedPDF(doc.id, doc.name)}>
+                            <FileText className="w-4 h-4 mr-1 text-green-600" />
+                            View Signed
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => handleSendToSigner(doc.id)}>
                           <Send className="w-4 h-4 mr-1" />
                           Send
