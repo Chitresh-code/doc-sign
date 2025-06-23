@@ -91,18 +91,18 @@ export class ApiClient {
     signer_last_name: string
     name?: string
   }) {
-    return this.request("/documents/v2/generate/", {
+    return this.request("/documents/v1/generate/", {
       method: "POST",
       body: JSON.stringify(documentData),
     })
   }
 
   async getDocuments() {
-    return this.request("/documents/v2/list/")
+    return this.request("/documents/v1/list/")
   }
 
   async getDocumentPDF(id: number) {
-    const url = `${this.baseURL}/documents/v2/view/${id}/`
+    const url = `${this.baseURL}/documents/v1/view/${id}/`
     const headers: HeadersInit = {}
 
     if (this.token) {
@@ -113,7 +113,7 @@ export class ApiClient {
   }
 
   async sendDocumentToSigner(id: number) {
-    return this.request(`/documents/v2/send/${id}/`, {
+    return this.request(`/documents/v1/send/${id}/`, {
       method: "POST",
     })
   }
