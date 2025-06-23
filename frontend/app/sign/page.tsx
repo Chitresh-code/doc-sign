@@ -49,6 +49,22 @@ export default function SignPage() {
     }
   }, [token, docId])
 
+  // Fetch signed PDF after signing
+  useEffect(() => {
+    if (signed && document) {
+      const fetchSignedPDF = async () => {
+        try {
+          const response = await apiClient.getSignedPDF(document.id)
+          const blob = await response.blob()
+          setPdfUrl(window.URL.createObjectURL(blob))
+        } catch (err) {
+          setPdfUrl(null)
+        }
+      }
+      fetchSignedPDF()
+    }
+  }, [signed, document])
+
   const fetchDocument = async () => {
     try {
       // In a real implementation, you'd have an endpoint to get document details for signers
@@ -178,7 +194,21 @@ export default function SignPage() {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Document Signed Successfully!</h2>
               <p className="text-gray-600 mb-6">Your document has been signed and the owner has been notified.</p>
-              <Button onClick={handleDownloadSigned}>
+              {/* Inline PDF Viewer for signed document */}
+              {pdfUrl ? (
+                <div className="my-4 border rounded overflow-hidden" style={{ height: 600 }}>
+                  <iframe
+                    src={pdfUrl}
+                    title="Signed Document PDF"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                  />
+                </div>
+              ) : (
+                <div className="text-gray-500">Unable to load signed PDF.</div>
+              )}
+              <Button onClick={handleDownloadSigned} className="mt-4">
                 <Download className="w-4 h-4 mr-2" />
                 Download Signed Document
               </Button>

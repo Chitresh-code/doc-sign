@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
+from django.db.models import Q
 
 from users.models import User
 from documents.models import GeneratedDocument
@@ -105,7 +106,11 @@ class GeneratedDocumentServeView(APIView):
 
     def get(self, request, pk):
         try:
-            document = get_object_or_404(GeneratedDocument, pk=pk, owner=request.user)
+            document = get_object_or_404(
+                GeneratedDocument,
+                Q(owner=request.user) | Q(signer=request.user),
+                pk=pk,
+            )
 
             if not document.plain_pdf:
                 return Response({'error': 'PDF not available'}, status=status.HTTP_404_NOT_FOUND)

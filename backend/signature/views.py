@@ -46,7 +46,7 @@ class SignDocumentView(APIView):
                 'invoice': 'invoice',
                 'offer': 'offer_letter',
             }
-            template_name = TEMPLATE_MATCH.get(template_name, 'default_template')
+            template_name = TEMPLATE_MATCH.get(doc.document_type, 'default_template')
             template = f"{template_name}.html"
 
             # Generate signed HTML → PDF
