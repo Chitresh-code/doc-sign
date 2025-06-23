@@ -21,7 +21,7 @@ export default function RegisterPage() {
     last_name: "",
     password: "",
     confirm_password: "",
-    role: "owner", // Hardcoded to owner
+    role: "user", // Hardcoded to owner
   })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
