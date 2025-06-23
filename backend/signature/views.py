@@ -7,7 +7,8 @@ from django.core.files.base import ContentFile
 from django.core.mail import send_mail
 from documents.models import GeneratedDocument
 from signature.models import SignedDocument
-from documents.utils import render_html, generate_pdf, encryption
+from documents.utils import render_html, generate_pdf
+from signature.utils.decrypt import decrypt_value
 from django.http import FileResponse
 from django.conf import settings
 import logging
@@ -30,14 +31,14 @@ class SignDocumentView(APIView):
 
             # Load the encrypted metadata
             metadata = {
-                k: encryption.encrypt_value(str(v))
+                k: decrypt_value(str(v))
                 for k, v in doc.encrypted_metadata.items()
             }
 
             # Add signer info
             signer_name = f"{request.user.first_name} {request.user.last_name}".strip()
             metadata['signature_text'] = f"Signed by {signer_name}"
-            plain_metadata = {k: encryption.decrypt_value(v) for k, v in doc.encrypted_metadata.items()}
+            plain_metadata = {k: decrypt_value(v) for k, v in doc.encrypted_metadata.items()}
             plain_metadata['signature_text'] = f"Signed by {signer_name}"
 
             template = f"{doc.document_type}.html"
@@ -54,8 +55,9 @@ class SignDocumentView(APIView):
                 original_document=doc,
                 signed_by=request.user
             )
-            signed.signed_pdf.save(f"{doc.id}_signed.pdf", ContentFile(signed_pdf))
-            signed.signed_encrypted_pdf.save(f"{doc.id}_signed_encrypted.pdf", ContentFile(signed_pdf_enc))
+            cleaned_name = ''.join(c for c in doc.name if c.isalnum() or c in (' ', '_')).rstrip()
+            signed.signed_pdf.save(f"{cleaned_name}_signed.pdf", ContentFile(signed_pdf))
+            signed.signed_encrypted_pdf.save(f"{cleaned_name}_signed_encrypted.pdf", ContentFile(signed_pdf_enc))
 
             # Notify owner
             send_mail(

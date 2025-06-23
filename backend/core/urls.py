@@ -25,8 +25,8 @@ user_apis_v1 = [
     path('users/v1/', include('users.urls')),
 ]
 
-documents_apis_v2 = [
-    path('documents/v2/', include('documents.urls')),
+documents_apis_v1 = [
+    path('documents/v1/', include('documents.urls')),
 ]
 
 summary_apis_v1 = [
@@ -40,7 +40,7 @@ signature_apis_v1 = [
 urlpatterns = [
     path("admin/", admin.site.urls),
     *user_apis_v1,
-    *documents_apis_v2,
+    *documents_apis_v1,
     *summary_apis_v1,
     *signature_apis_v1,
 ]

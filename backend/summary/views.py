@@ -7,6 +7,7 @@ from summary.models import DocumentSummary
 from documents.models import GeneratedDocument
 from summary.serializers import DocumentSummarySerializer
 from summary.utils.summarizer import summarize_encrypted_html
+from summary.utils.decrypt import decrypt_value
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class GenerateDocumentSummaryView(APIView):
             if hasattr(doc, 'summary'):
                 return Response({'message': 'Summary already exists for this document.'}, status=400)
 
-            html_path = doc.encrypted_pdf.path.replace(".pdf", ".html")
+            html_path = doc.encrypted_html.path if doc.encrypted_html else None
             try:
                 with open(html_path, 'r', encoding='utf-8') as f:
                     encrypted_html = f.read()
@@ -65,7 +66,19 @@ class ViewDocumentSummaryView(APIView):
             if not hasattr(doc, 'summary'):
                 return Response({'error': 'Summary not available.'}, status=404)
 
-            return Response(DocumentSummarySerializer(doc.summary).data)
+            summary_data = DocumentSummarySerializer(doc.summary).data
+
+            if summary_data["dates"]:
+                summary_data["dates"] = {
+                    k: decrypt_value(v) if v else "" for k, v in summary_data["dates"].items()
+                }
+
+            if summary_data["signatures_required"]:
+                summary_data["signatures_required"] = {
+                    k: decrypt_value(v) if v else "" for k, v in summary_data["signatures_required"].items()
+                }
+
+            return Response(summary_data)
 
         except Exception as e:
             logger.error(f"[ViewDocumentSummaryView] {str(e)}", exc_info=True)

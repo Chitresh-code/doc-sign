@@ -19,6 +19,7 @@ from documents.utils import render_html, generate_pdf, encryption, ai
 from rest_framework.generics import ListAPIView
 from django.core.mail import EmailMessage
 from rest_framework_simplejwt.tokens import AccessToken
+from django.utils.crypto import get_random_string
 from decouple import config
 
 import logging
@@ -45,7 +46,7 @@ class GenerateDocumentView(APIView):
                     'first_name': data['signer_first_name'],
                     'last_name': data['signer_last_name'],
                     'role': 'signer',
-                    'password': User.objects.make_random_password(),
+                    'password': get_random_string(12),
                 }
             )
             if created:
@@ -53,7 +54,7 @@ class GenerateDocumentView(APIView):
 
             context = " ".join([str(v) for v in data['metadata'].values()])
             ai_content = ai.generate_ai_clause(data['prompt'], context)
-            metadata = {**data['metadata'], 'ai_clause_details': ai_content}
+            metadata = {**data['metadata'], 'ai_clause_details': ai_content, 'issuer': request.user.get_full_name()}
 
             html_plain = render_html.render_html(template, metadata)
             pdf_plain = generate_pdf.generate_pdf_from_html(html_plain)
@@ -71,8 +72,11 @@ class GenerateDocumentView(APIView):
                 name=data.get('name', f"{data['template_type'].capitalize()} Document"),
                 encrypted_metadata=encrypted_metadata
             )
-            doc.plain_pdf.save(f"{doc.id}_plain.pdf", ContentFile(pdf_plain))
-            doc.encrypted_pdf.save(f"{doc.id}_encrypted.pdf", ContentFile(pdf_encrypted))
+            clean_name = data.get("name", f"{data['template_type'].capitalize()} Document").replace(" ", "_")
+            doc.plain_pdf.save(f"{clean_name}.pdf", ContentFile(pdf_plain))
+            doc.encrypted_pdf.save(f"{clean_name}_encrypted.pdf", ContentFile(pdf_encrypted))
+            doc.plain_html.save(f"{clean_name}.html", ContentFile(html_plain))
+            doc.encrypted_html.save(f"{clean_name}_encrypted.html", ContentFile(html_encrypted))
 
             logger.info(f"Document generated: {doc.id} by {request.user.username}")
             return Response(GeneratedDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
@@ -123,8 +127,8 @@ class SendToSignerView(APIView):
 
             # Generate token and build frontend URL
             token = str(AccessToken.for_user(document.signer))
-            frontend_base_url = config("FRONTEND_URL", default="https://your-frontend.com/user")
-            sign_url = f"{frontend_base_url}?token={token}&doc={document.id}"
+            frontend_base_url = config("FRONTEND_URL", default="https://your-frontend.com")
+            sign_url = f"{frontend_base_url}/sign?token={token}&doc={document.id}"
 
             email_subject = f"Document to Sign: {document_name}"
             email_body = f"""

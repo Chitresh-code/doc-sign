@@ -1,7 +1,9 @@
-import openai
+from openai import OpenAI
 from django.conf import settings
+import re
+import json
 
-openai.api_key = settings.OPENAI_API_KEY
+openai = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def summarize_encrypted_html(html_content: str) -> dict:
     system_msg = (
@@ -24,8 +26,8 @@ def summarize_encrypted_html(html_content: str) -> dict:
     {html_content}
     """
 
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
+    response = openai.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt}
@@ -33,8 +35,10 @@ def summarize_encrypted_html(html_content: str) -> dict:
         temperature=0.3
     )
 
-    import json
-    content = response.choices[0].message['content']
+    content = response.choices[0].message.content.strip()
+    if content.startswith("```"):
+            content = re.sub(r"^```[a-zA-Z]*\n?", "", content)
+            content = content.rstrip("`").rstrip()
 
     try:
         return json.loads(content)

@@ -22,14 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-$y3-@!3-6n$*n@gjfe3x*)ltx25+0#p=lh6!wl7itz_k0ejwzu"
+SECRET_KEY = config("DJANGO_SECRET_KEY", default='django-insecure-4!@#%&*()_+{}:"<>?[];', cast=str)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    "localhost",
-]
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv())
 
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv(), default='http://localhost:3000')
 
@@ -51,6 +49,9 @@ INSTALLED_APPS = [
     "django_cryptography",
 
     "users",
+    "documents",
+    "summary",
+    "signature",
 ]
 
 MIDDLEWARE = [
@@ -190,3 +191,5 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+
+FERNET_KEY = config('FERNET_KEY', default='')

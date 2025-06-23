@@ -16,6 +16,9 @@ class GeneratedDocument(models.Model):
 
     plain_pdf = models.FileField(upload_to='documents/plain/')
     encrypted_pdf = models.FileField(upload_to='documents/encrypted/')
+    
+    plain_html = models.FileField(upload_to='documents/plain_html/', null=True, blank=True)
+    encrypted_html = models.FileField(upload_to='documents/encrypted_html/', null=True, blank=True)
 
     encrypted_metadata = encrypt(models.JSONField(null=True, blank=True))
 
