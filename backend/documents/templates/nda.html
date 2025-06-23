@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Non-Disclosure Agreement</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.7;
+            margin: 2cm;
+        }
+        h1 {
+            text-align: center;
+        }
+        .section {
+            margin-top: 20px;
+        }
+        .signature-placeholder {
+            margin-top: 3cm;
+            width: 300px;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 20px;
+            margin-bottom: 5px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Non-Disclosure Agreement (NDA)</h1>
+
+    <p><strong>Effective Date:</strong> {{ start_date }}</p>
+    <p><strong>Expiration Date:</strong> {{ end_date }}</p>
+
+    <div class="section">
+        <p>
+            This NDA is entered into by <span class="bold">{{ issuer }}</span> ("Disclosing Party") and
+            <span class="bold">{{ recipient_name }}</span> ("Receiving Party").
+        </p>
+        <p>
+            The Receiving Party agrees not to disclose or use any confidential information 
+            shared by the Disclosing Party except as required in the performance of their duties.
+        </p>
+        <p>
+            This agreement will remain in effect until <strong>{{ end_date }}</strong>, unless terminated earlier in writing.
+        </p>
+        <p>{{ ai_clause_details }}</p>
+    </div>
+
+    <div class="signature-placeholder"
+         data-signature-required="true"
+         data-signer-role="recipient"
+         data-signer-name="{{ recipient_name }}">
+        <div class="signature-line"></div>
+        <p>{{ recipient_name }}</p>
+        <p><em>Recipient Signature</em></p>
+    </div>
+
+    <div class="signature-placeholder"
+         data-signature-required="true"
+         data-signer-role="issuer"
+         data-signer-name="{{ issuer }}">
+        <div class="signature-line"></div>
+        <p>{{ issuer }}</p>
+        <p><em>Disclosing Party Signature</em></p>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employment Offer Letter</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            margin: 2cm;
+        }
+        .header, .footer {
+            text-align: center;
+        }
+        .signature-placeholder {
+            margin-top: 3cm;
+            position: relative;
+            width: 300px;
+        }
+        .signature-line {
+            border-bottom: 1px solid #000;
+            height: 20px;
+            margin-bottom: 5px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Offer of Employment</h1>
+    </div>
+
+    <p>Date: {{ start_date }}</p>
+
+    <p>Dear {{ recipient_name }},</p>
+
+    <p>
+        We are excited to offer you the position of <span class="bold">{{ role }}</span> at our company.
+        We were impressed by your skills and believe you'll be a valuable asset to our team.
+    </p>
+
+    <p>
+        Your starting salary will be <span class="bold">₹{{ salary }}</span> per month.
+        Your start date is expected to be <span class="bold">{{ start_date }}</span>.
+    </p>
+
+    <p>
+        This offer is contingent upon the completion of necessary formalities and documentation. Please indicate your acceptance by signing below.
+    </p>
+
+    <div class="signature-placeholder"
+         data-signature-required="true"
+         data-signer-role="recipient"
+         data-signer-name="{{ recipient_name }}">
+        <div class="signature-line"></div>
+        <p>{{ recipient_name }}</p>
+        <p><em>Signature</em></p>
+    </div>
+
+    <p style="margin-top: 2cm;">Sincerely,</p>
+    <p>{{ issuer }}</p>
+
+</body>
+</html>
