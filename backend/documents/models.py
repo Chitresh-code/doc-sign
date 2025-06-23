@@ -1,29 +1,26 @@
 from django.db import models
-from users.models import User
+from django.conf import settings
+from django_cryptography.fields import encrypt
 
 class GeneratedDocument(models.Model):
     DOCUMENT_TYPES = [
-        ('offer_letter', 'Offer Letter'),
-        ('nda', 'Non-Disclosure Agreement'),
+        ('nda', 'NDA'),
         ('invoice', 'Invoice'),
+        ('offer', 'Offer Letter'),
     ]
-
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
-    file = models.FileField(upload_to='generated_docs/')
-    metadata = models.JSONField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.document_type} for {self.created_by.username}"
     
-class NDADraft(models.Model):
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    prompt = models.TextField()
-    ai_clause_details = models.TextField()
-    is_confirmed = models.BooleanField(default=False)
-    confirmed_at = models.DateTimeField(null=True, blank=True)
+    name = models.CharField(max_length=255, blank=True, null=True)
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_documents')
+    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
+    signer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents_to_sign')
+
+    plain_pdf = models.FileField(upload_to='documents/plain/')
+    encrypted_pdf = models.FileField(upload_to='documents/encrypted/')
+
+    encrypted_metadata = encrypt(models.JSONField(null=True, blank=True))
+
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"NDA Draft by {self.created_by.username}"
+        return f"{self.document_type} by {self.owner.username} for {self.signer.username if self.signer else 'N/A'}"

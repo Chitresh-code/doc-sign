@@ -1,93 +1,156 @@
-import uuid
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.files.base import ContentFile
 from django.conf import settings
-from documents.serializers import DocumentGenerateSerializer, GeneratedDocumentSerializer
-from documents.generators import generate_pdf, get_context
-from documents.models import GeneratedDocument
-from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.http import FileResponse
+
+from users.models import User
+from documents.models import GeneratedDocument
+from documents.serializers import (
+    DocumentCreateSerializer,
+    GeneratedDocumentSerializer,
+    GeneratedDocumentListSerializer
+)
+
+from documents.utils import render_html, generate_pdf, encryption, ai
 from rest_framework.generics import ListAPIView
-from documents.models import NDADraft
-from documents.generators import generate_nda_terms
-from documents.serializers import NDADraftSerializer
-from datetime import datetime
+from django.core.mail import EmailMessage
+from rest_framework_simplejwt.tokens import AccessToken
+from decouple import config
+
+import logging
+logger = logging.getLogger(__name__)
 
 
-class DocumentGenerateView(APIView):
+class GenerateDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = DocumentGenerateSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer = DocumentCreateSerializer(data=request.data)
+            if not serializer.is_valid():
+                logger.warning("Invalid document creation data", extra={'errors': serializer.errors})
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
             data = serializer.validated_data
-            document_type = data["document_type"]
-            try:
-                context = get_context(document_type, data, request.user)
-            except ValueError as ve:
-                return Response({"error": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
+            template = f"{data['template_type']}.html"
 
-            # Generate unique file name
-            filename = f"{document_type}_{uuid.uuid4().hex}.pdf"
-            relative_path = generate_pdf(document_type, context, filename)
-
-            # Save to DB
-            doc = GeneratedDocument.objects.create(
-                created_by=request.user,
-                document_type=document_type,
-                file=relative_path,
-                metadata=context,
+            signer, created = User.objects.get_or_create(
+                username=data['signer_username'],
+                defaults={
+                    'email': data['signer_email'],
+                    'first_name': data['signer_first_name'],
+                    'last_name': data['signer_last_name'],
+                    'role': 'signer',
+                    'password': User.objects.make_random_password(),
+                }
             )
+            if created:
+                logger.info(f"Signer created: {signer.username}")
 
+            context = " ".join([str(v) for v in data['metadata'].values()])
+            ai_content = ai.generate_ai_clause(data['prompt'], context)
+            metadata = {**data['metadata'], 'ai_clause_details': ai_content}
+
+            html_plain = render_html.render_html(template, metadata)
+            pdf_plain = generate_pdf.generate_pdf_from_html(html_plain)
+
+            encrypted_metadata = {
+                k: encryption.encrypt_value(str(v)) for k, v in metadata.items()
+            }
+            html_encrypted = render_html.render_html(template, encrypted_metadata)
+            pdf_encrypted = generate_pdf.generate_pdf_from_html(html_encrypted)
+
+            doc = GeneratedDocument.objects.create(
+                owner=request.user,
+                signer=signer,
+                document_type=data['template_type'],
+                name=data.get('name', f"{data['template_type'].capitalize()} Document"),
+                encrypted_metadata=encrypted_metadata
+            )
+            doc.plain_pdf.save(f"{doc.id}_plain.pdf", ContentFile(pdf_plain))
+            doc.encrypted_pdf.save(f"{doc.id}_encrypted.pdf", ContentFile(pdf_encrypted))
+
+            logger.info(f"Document generated: {doc.id} by {request.user.username}")
             return Response(GeneratedDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-class DocumentListView(ListAPIView):
-    serializer_class = GeneratedDocumentSerializer
+        except Exception as e:
+            logger.error(f"[GenerateDocumentView] Error: {str(e)}", exc_info=True)
+            return Response({'error': 'Something went wrong while generating the document.'}, status=500)
+
+
+class GeneratedDocumentListView(ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = GeneratedDocumentListSerializer
 
     def get_queryset(self):
-        return GeneratedDocument.objects.filter(created_by=self.request.user)
+        return GeneratedDocument.objects.filter(owner=self.request.user).order_by('-created_at')
 
 
-class DocumentPreviewView(APIView):
+class GeneratedDocumentServeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        doc = get_object_or_404(GeneratedDocument, pk=pk, created_by=request.user)
-        return FileResponse(doc.file, content_type='application/pdf')
-    
-class NDADraftGenerateView(APIView):
-    permission_classes = [IsAuthenticated]
+        try:
+            document = get_object_or_404(GeneratedDocument, pk=pk, owner=request.user)
 
-    def post(self, request):
-        prompt = request.data.get("prompt")
-        if not prompt:
-            return Response({"error": "Prompt is required."}, status=400)
+            if not document.plain_pdf:
+                return Response({'error': 'PDF not available'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Call LLM (OpenAI, etc.) to generate content
-        ai_content = generate_nda_terms(prompt)
+            return FileResponse(document.plain_pdf.open('rb'), content_type='application/pdf')
 
-        draft = NDADraft.objects.create(
-            created_by=request.user,
-            prompt=prompt,
-            ai_clause_details=ai_content
-        )
-        return Response(NDADraftSerializer(draft).data, status=201)
+        except Exception as e:
+            logger.error(f"[ServeDocument] Failed to serve PDF for document {pk}: {str(e)}", exc_info=True)
+            return Response({'error': 'Failed to serve the document PDF.'}, status=500)
+        
 
-
-class NDADraftConfirmView(APIView):
+class SendToSignerView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        draft = get_object_or_404(NDADraft, pk=pk, created_by=request.user)
-        new_content = request.data.get("ai_clause_details")
-        if new_content:
-            draft.ai_clause_details = new_content
-        draft.is_confirmed = True
-        draft.confirmed_at = datetime.now()
-        draft.save()
-        return Response(NDADraftSerializer(draft).data)
+        try:
+            document = get_object_or_404(GeneratedDocument, pk=pk, owner=request.user)
+
+            if not document.signer:
+                return Response({'error': 'No signer associated with this document.'}, status=400)
+
+            signer_email = document.signer.email
+            document_name = document.name or f"{document.document_type.capitalize()} Document"
+            signer_name = f"{document.signer.first_name} {document.signer.last_name}".strip()
+
+            # Generate token and build frontend URL
+            token = str(AccessToken.for_user(document.signer))
+            frontend_base_url = config("FRONTEND_URL", default="https://your-frontend.com/user")
+            sign_url = f"{frontend_base_url}?token={token}&doc={document.id}"
+
+            email_subject = f"Document to Sign: {document_name}"
+            email_body = f"""
+            Hi {signer_name or document.signer.username},
+
+            You have received a document titled **{document_name}** to review and sign.
+
+            Please click the link below to access the document:
+            {sign_url}
+
+            Thank you.
+            """
+
+            email = EmailMessage(
+                subject=email_subject,
+                body=email_body,
+                to=[signer_email],
+            )
+
+            if document.plain_pdf and document.plain_pdf.path:
+                email.attach_file(document.plain_pdf.path)
+
+            email.send()
+            logger.info(f"Sent document {document.id} to signer {document.signer.username}")
+            return Response({'message': 'Document sent to signer successfully.'})
+
+        except Exception as e:
+            logger.error(f"[SendToSignerView] Error: {str(e)}", exc_info=True)
+            return Response({'error': 'Failed to send document to signer.'}, status=500)

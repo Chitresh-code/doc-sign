@@ -1,0 +1,222 @@
+"use client"
+
+import type React from "react"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { apiClient } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
+
+export default function CreateDocumentPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [formData, setFormData] = useState({
+    name: "",
+    template_type: "",
+    prompt: "",
+    signer_username: "",
+    signer_email: "",
+    signer_first_name: "",
+    signer_last_name: "",
+    metadata: {},
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    try {
+      await apiClient.generateDocument(formData)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Failed to create document")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleMetadataChange = (key: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      metadata: { ...prev.metadata, [key]: value },
+    }))
+  }
+
+  if (!user) {
+    router.push("/login")
+    return null
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center py-4">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900 ml-4">Create New Document</h1>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Document Details</CardTitle>
+            <CardDescription>Fill in the information below to generate your document</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Document Name</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => handleChange("name", e.target.value)}
+                      placeholder="e.g., NDA for John Doe"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="template_type">Document Type</Label>
+                    <Select
+                      value={formData.template_type}
+                      onValueChange={(value) => handleChange("template_type", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select document type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nda">Non-Disclosure Agreement</SelectItem>
+                        <SelectItem value="offer">Job Offer Letter</SelectItem>
+                        <SelectItem value="invoice">Invoice</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="prompt">AI Prompt</Label>
+                    <Textarea
+                      id="prompt"
+                      value={formData.prompt}
+                      onChange={(e) => handleChange("prompt", e.target.value)}
+                      placeholder="Describe any specific clauses or terms you want to include..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Signer Information</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signer_first_name">First Name</Label>
+                      <Input
+                        id="signer_first_name"
+                        value={formData.signer_first_name}
+                        onChange={(e) => handleChange("signer_first_name", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signer_last_name">Last Name</Label>
+                      <Input
+                        id="signer_last_name"
+                        value={formData.signer_last_name}
+                        onChange={(e) => handleChange("signer_last_name", e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signer_username">Username</Label>
+                    <Input
+                      id="signer_username"
+                      value={formData.signer_username}
+                      onChange={(e) => handleChange("signer_username", e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signer_email">Email</Label>
+                    <Input
+                      id="signer_email"
+                      type="email"
+                      value={formData.signer_email}
+                      onChange={(e) => handleChange("signer_email", e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Additional Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="company">Company Name</Label>
+                    <Input
+                      id="company"
+                      onChange={(e) => handleMetadataChange("company", e.target.value)}
+                      placeholder="Company name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Position/Title</Label>
+                    <Input
+                      id="position"
+                      onChange={(e) => handleMetadataChange("position", e.target.value)}
+                      placeholder="Job title or position"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4">
+                <Link href="/dashboard">
+                  <Button variant="outline">Cancel</Button>
+                </Link>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Creating Document..." : "Create Document"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  )
+}

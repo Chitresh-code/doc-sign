@@ -1,22 +1,33 @@
 from rest_framework import serializers
-from documents.models import GeneratedDocument, NDADraft
+from users.models import User
+from documents.models import GeneratedDocument
 
-class DocumentGenerateSerializer(serializers.Serializer):
-    document_type = serializers.ChoiceField(choices=GeneratedDocument.DOCUMENT_TYPES)
-    recipient_name = serializers.CharField()
-    role = serializers.CharField(required=False)
-    salary = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    start_date = serializers.DateField(required=False)
-    due_date = serializers.DateField(required=False)
-    amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+class DocumentCreateSerializer(serializers.Serializer):
+    template_type = serializers.ChoiceField(choices=['nda', 'offer', 'invoice'])
+    prompt = serializers.CharField()
+    metadata = serializers.DictField()
+
+    signer_username = serializers.CharField()
+    signer_email = serializers.EmailField()
+    signer_first_name = serializers.CharField()
+    signer_last_name = serializers.CharField()
+    name = serializers.CharField(required=False)
+
 
 class GeneratedDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = GeneratedDocument
-        fields = '__all__'
-        
-class NDADraftSerializer(serializers.ModelSerializer):
+        fields = [
+            'id', 'name', 'document_type', 'plain_pdf', 'encrypted_pdf',
+            'encrypted_metadata', 'signer', 'owner', 'created_at'
+        ]
+        read_only_fields = ['id', 'owner', 'created_at', 'plain_pdf', 'encrypted_pdf']
+
+
+class GeneratedDocumentListSerializer(serializers.ModelSerializer):
+    signer_username = serializers.CharField(source='signer.username', read_only=True)
+
     class Meta:
-        model = NDADraft
-        fields = '__all__'
-        read_only_fields = ['created_by', 'ai_clause_details', 'confirmed_at']
+        model = GeneratedDocument
+        fields = ['id', 'name', 'document_type', 'signer_username', 'created_at']

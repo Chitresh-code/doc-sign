@@ -55,9 +55,15 @@
          data-signature-required="true"
          data-signer-role="recipient"
          data-signer-name="{{ recipient_name }}">
-        <div class="signature-line"></div>
-        <p>{{ recipient_name }}</p>
-        <p><em>Signature</em></p>
+        {% if signature_text %}
+            <div class="signature-line"></div>
+            <p>{{ signature_text }}</p>
+            <p><em>Signed Electronically</em></p>
+        {% else %}
+            <div class="signature-line"></div>
+            <p>{{ recipient_name }}</p>
+            <p><em>Signature</em></p>
+        {% endif %}
     </div>
 
     <p style="margin-top: 2cm;">Sincerely,</p>
