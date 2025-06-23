@@ -15,6 +15,13 @@ interface Document {
   created_at: string
 }
 
+interface Summary {
+  terms?: string
+  responsibilities?: string
+  dates?: Record<string, string>
+  signatures_required?: Record<string, string>
+}
+
 export default function SignPage() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
@@ -25,11 +32,17 @@ export default function SignPage() {
   const [signing, setSigning] = useState(false)
   const [signed, setSigned] = useState(false)
   const [error, setError] = useState("")
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [summary, setSummary] = useState<Summary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState("")
 
   useEffect(() => {
     if (token && docId) {
       apiClient.setToken(token)
       fetchDocument()
+      fetchPDF()
+      fetchSummary()
     } else {
       setError("Invalid signing link")
       setLoading(false)
@@ -53,16 +66,39 @@ export default function SignPage() {
     }
   }
 
-  const handleViewDocument = async () => {
-    if (!document) return
-
+  const fetchPDF = async () => {
     try {
-      const response = await apiClient.getDocumentPDF(document.id)
+      const response = await apiClient.getDocumentPDF(Number(docId))
       const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      window.open(url, "_blank")
-    } catch (error) {
-      console.error("Failed to view document:", error)
+      setPdfUrl(window.URL.createObjectURL(blob))
+    } catch (err) {
+      setPdfUrl(null)
+    }
+  }
+
+  const fetchSummary = async () => {
+    setSummaryLoading(true)
+    setSummaryError("")
+    try {
+      const data = await apiClient.getSummary(Number(docId))
+      setSummary(data)
+    } catch (err: any) {
+      setSummary(null)
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
+  const handleGenerateSummary = async () => {
+    setSummaryLoading(true)
+    setSummaryError("")
+    try {
+      await apiClient.generateSummary(Number(docId))
+      await fetchSummary()
+    } catch (err: any) {
+      setSummaryError("Failed to generate summary")
+    } finally {
+      setSummaryLoading(false)
     }
   }
 
@@ -168,11 +204,52 @@ export default function SignPage() {
                 </p>
               </div>
 
+              {/* Inline PDF Viewer */}
+              {pdfUrl ? (
+                <div className="my-4 border rounded overflow-hidden" style={{ height: 600 }}>
+                  <iframe
+                    src={pdfUrl}
+                    title="Document PDF"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                  />
+                </div>
+              ) : (
+                <div className="text-gray-500">Unable to load PDF.</div>
+              )}
+
+              {/* Summary Section */}
+              <div className="my-4">
+                <h3 className="font-medium text-gray-900 mb-2">Document Summary</h3>
+                {summaryLoading ? (
+                  <div className="text-gray-500">Loading summary...</div>
+                ) : summary ? (
+                  <div className="bg-gray-50 border border-gray-200 rounded p-4 space-y-2">
+                    {summary.terms && (
+                      <div><strong>Terms:</strong> {summary.terms}</div>
+                    )}
+                    {summary.responsibilities && (
+                      <div><strong>Responsibilities:</strong> {summary.responsibilities}</div>
+                    )}
+                    {summary.dates && Object.keys(summary.dates).length > 0 && (
+                      <div><strong>Dates:</strong> {Object.entries(summary.dates).map(([k, v]) => `${k}: ${v}`).join(", ")}</div>
+                    )}
+                    {summary.signatures_required && Object.keys(summary.signatures_required).length > 0 && (
+                      <div><strong>Signatures Required:</strong> {Object.entries(summary.signatures_required).map(([k, v]) => `${k}: ${v}`).join(", ")}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <Button onClick={handleGenerateSummary} disabled={summaryLoading}>
+                      {summaryLoading ? "Generating..." : "Generate Summary"}
+                    </Button>
+                    {summaryError && <div className="text-red-500 mt-2">{summaryError}</div>}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-4">
-                <Button variant="outline" onClick={handleViewDocument}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  View Document
-                </Button>
                 <Button onClick={handleSignDocument} disabled={signing} className="bg-green-600 hover:bg-green-700">
                   {signing ? "Signing..." : "Sign Document"}
                 </Button>
