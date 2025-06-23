@@ -32,6 +32,12 @@ export default function DashboardPage() {
       return
     }
     fetchDocuments()
+    // Refetch documents when window regains focus
+    const handleFocus = () => {
+      fetchDocuments()
+    }
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
   }, [user])
 
   const fetchDocuments = async () => {
